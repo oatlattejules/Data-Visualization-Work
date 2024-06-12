@@ -1,0 +1,230 @@
+---
+title: "L04 Maps"
+subtitle: "Data Visualization (STAT 302)" 
+author: "JULIANNA WANG"
+pagetitle: "L04 JULIANNA WANG"
+
+format:
+  html:
+    toc: true
+    toc-location: left
+    embed-resources: true
+    link-external-newwindow: true
+    code-fold: show
+    fig-dpi: 300
+    
+execute:
+  warning: false
+
+from: markdown+emoji
+reference-location: margin
+citation-location: margin 
+---
+
+
+## Overview
+
+The goal of this lab is to explore various ways of building maps with `ggplot2`.
+
+Challenges are not mandatory for students to complete. We highly recommend students attempt them though. *We would expect graduate students to attempt the challenges.*
+
+## Datasets
+
+We'll be using the `US_income.rda` dataset which should be placed in the `/data` subdirectory in our **data_vis_labs** project. You'll also be downloading your own data to build maps.
+```{r} 
+#| label: load-packages
+
+# Load package(s)
+library(tidyverse)
+library(tigris)
+library(sf)
+library(viridis)
+library(statebins)
+library(tidycensus)
+
+# Load dataset(s)
+load('data/US_income.rda')
+
+```
+
+## Exercise 1
+
+### Plot 1
+
+Make a county map of a US state using `geom_polygon()`. Maybe use your home state or a favorite state. Please do NOT use the state in the ggplot2 book example. 
+
+Optional: Consider adding major cities (or your home town).
+
+*Hints:*
+
+-   See section [6.1](https://ggplot2-book.org/maps.html#polygonmaps) in our book.
+-   Void theme
+
+::: {.callout-tip icon="false"}
+## Solution
+
+```{r}
+#| label: exercise-1-plot-1
+
+# nc county data  
+nc_state <- map_data('county', 'north carolina') |>
+  select(lon = long, lat, group, id = subregion)
+
+# hometown
+home <- tibble(
+  name = 'Concord',
+  lon = -80.5795,
+  lat = 35.4088
+)
+
+# building the plot 
+ggplot(data = nc_state, aes(x = lon, y = lat)) + 
+  geom_polygon(aes(group = group), fill = NA, color = 'grey50') +
+  ggstar::geom_star(data = home, aes(x = lon, y = lat), starshape = 16, fill = 'red', color = 'red', size = 2) + 
+  ggtitle('North Carolina') + 
+  coord_quickmap() + 
+  theme_void()
+```
+
+:::
+
+### Plot 2
+
+Now use `geom_sf()` instead. You'll need to download data for this. You can use either the `tigris` ([github page](https://github.com/walkerke/tigris)) or `geodata` packages. Either `tigris`' `counties()` with `cb = TRUE` or `geodata`'s `gadm()` could be useful.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+```{r}
+#| label: exercise-1-plot-2
+# nc county data  
+nc_state2 <- counties(state = 'NC', cb = TRUE, progress_bar = FALSE)
+
+# building the plot 
+ggplot(data = nc_state2) + 
+  geom_sf(aes(geometry = geometry), fill = NA, color = 'grey50') + 
+  ggtitle('North Carolina') + 
+  theme_void()
+```
+
+:::
+
+## Exercise 2
+
+Using the `US_income` dataset, recreate the following graphics as precisely as possible.
+
+```{r}
+#| label: ex-2-data-wrangle
+#eval : FALSE
+
+# Setting income levels
+US_income <- mutate(
+  US_income,
+  income_bins = cut(
+    ifelse(is.na(median_income), 25000, median_income),
+    breaks = c(0, 40000, 50000, 60000, 70000, 80000),
+    labels = c("< $40k", "$40k to $50k", 
+               "$50k to $60k", "$60k to $70k", "> $70k"),
+    right = FALSE
+  )
+)
+```
+
+### Plot 1
+
+*Hints:*
+
+-   `geom_sf()` --- boundary color is `"grey80"` and size is 0.2
+-   `viridis` package (`discrete = TRUE` in `scale_*` function)
+-   Void theme
+
+::: {.callout-tip icon="false"}
+## Solution
+
+```{r}
+#| label: exericse-2-plot-1
+
+# building the plot 
+
+ggplot(data = US_income) + 
+  geom_sf(aes(fill = income_bins, geometry = geometry), color = 'grey80', size = 0.2) + 
+  scale_fill_viridis(discrete = TRUE, name = 'Median Income') + 
+  theme_void()
+```
+
+:::
+
+### Plot 2
+
+*Hints:*
+
+-   `statebins::geom_statebins()`
+-   `viridis` package (`discrete = TRUE` in `scale_*` function)
+-   Statebins theme
+
+::: {.callout-tip icon="false"}
+## Solution
+
+```{r}
+#| label: exercise-2-plot-2
+
+#building the plot 
+
+ggplot(data = US_income) + 
+  geom_statebins(aes(state = name, fill = income_bins), color = 'grey80', size = 0.2) + 
+  scale_fill_viridis(discrete = TRUE, name = 'Median Income') + 
+  theme_void() + 
+  theme(legend.position = 'bottom', legend.box = 'horizontal')
+```
+
+:::
+
+## Exercise 3
+
+Pick any city or foreign country to build a map for. You can dress it up or make it as basic as you want. Also welcome to try building a graphic like that depicted at the end of section [6.5](https://ggplot2-book.org/maps.html#rastermaps) --- use a different region though.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+```{r}
+#| label: exercise-3-plot 
+
+# getting map_data
+sweden_map <- map_data('world', region = 'Sweden')
+
+# building the plot 
+ggplot(data = sweden_map, aes(x = long, y = lat)) +
+  geom_polygon(aes(group = group), fill = 'pink', color = 'grey50') +
+  coord_quickmap() +
+  ggtitle('Map of Sweden') + 
+  theme_minimal() 
+```
+
+:::
+
+## Challenge(s)
+
+**Optional**
+
+Using the `tidycensus` package and few others, try to create a map like below using [these directions](https://walkerke.github.io/tidycensus/articles/spatial-data.html). Try using a different geographical area and a different variable from the ACS.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+```{r}
+#| label: challenge-plot
+
+# info for Cabarrus County
+nc <- get_acs(geography = 'tract', variables = 'B25077_001', state = 'NC', county = 'Cabarrus', year = 2020, geometry = TRUE, progress_bar = FALSE)
+
+# building the plot 
+ggplot(nc, aes(fill = estimate)) + 
+  geom_sf() +
+  scale_fill_viridis_c(labels = scales::dollar) +  
+  ggtitle('Median home value in Cabarrus County, NC' ) + 
+  theme_void()
+```
+
+
+:::
+

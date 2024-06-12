@@ -1,0 +1,189 @@
+---
+title: "L08 Coords"
+subtitle: "Data Visualization (STAT 302)"
+author: "JULIANNA WANG"
+pagetitle: "L08 JULIANNA WANG"
+date: today
+
+format:
+  html:
+    toc: true
+    toc-location: left
+    embed-resources: true
+    code-fold: show
+    link-external-newwindow: true
+    fig-dpi: 300
+
+execute:
+  warning: false
+
+from: markdown+emoji 
+---
+
+
+## Overview
+
+The goal of this lab is to use an alternative coordinate system in `ggplot2` to build a plot. 
+
+## Dataset
+
+We'll be using the `mod_nba_adv_stats_2023_24.txt` dataset --- add to your project's `/data` subdirectory. The `mod_nba_adv_stats_2023_24_codebook.txt` provides a quick description of the variables in the dataset --- suggest adding it to the `/data` subdirectory as well. 
+
+```{r}
+#| label: load-pkgs-data
+
+# load package(s)
+library(tidyverse)
+
+# load data
+nba <- read_delim(file = "data/mod_nba_adv_stats_2023_24.txt", delim = "|") 
+keys <- read_delim(file = "data/mod_nba_adv_stats_2023_24_codebook.txt", delim = ": ")
+
+```
+
+## Exercise 
+
+<!-- See the html instructions since they are complete with images and are the official instructions. -->
+
+Using the `mod_nba_adv_stats_2023_24.txt` dataset we will try to recreate/approximate the plot type featured in the [FiveThirtyEight](http://fivethirtyeight.com/) article [Kawhi Leonard Is The Most Well-Rounded Elite Shooter Since Larry Bird](http://fivethirtyeight.com/features/kawhi-leonard-is-the-most-well-rounded-elite-shooter-since-larry-bird/) for any player of your choice for the 2023-2024 season. 
+
+:::{.callout-note icon=false}
+
+## Goal
+
+Replicate the graphic below as closely as possible --- see instructions for image.
+
+:::
+
+### Start with data wrangling
+
+When data wrangling we will need a helper function for creating the quartiles for players. Additionally, it will be useful to exclude players that played less than 10 games or played less than 5 minutes a game. That is, we only want to include "qualified" players.
+
+```{r}
+#| label: helper-function
+
+# Returns quartile rank
+quartile_rank <- function(x = 0:99) {
+  # Set quartile
+  quart_breaks <- c(
+    -Inf,
+    quantile(x,
+      probs = c(.25, .5, .75),
+      na.rm = TRUE
+    ),
+    Inf
+  )
+  cut(x = x, breaks = quart_breaks, labels = FALSE)
+}
+```
+
+:::{.callout-important}
+**Add comments to** the code below where indicated. The added comments should concisely describe what the following line(s) of code do in the data wrangling process  
+:::
+
+::: {.callout-tip icon=false}
+
+## Solution
+
+```{r}
+#| label: data-wrangling
+
+# Graphical data
+nba_graph_dat <- nba |> 
+  # filters players with at least 10 games, at least 5 minutes played per game
+  filter(g >= 10, mp / g >= 5) |> 
+  # create variables for each player's statistic rank
+  mutate(
+    ts_quant = quartile_rank(ts_percent),
+    trb_quant = quartile_rank(trb_percent),
+    dbpm_quant = quartile_rank(dbpm),
+    ast_quant = quartile_rank(ast_percent),
+    usg_quant = quartile_rank(usg_percent)
+  ) |> 
+  # pick players column and columns with "_quant" in their name
+  select(player, contains("_quant")) |> 
+  # pivot data to long format
+  pivot_longer(
+    cols = -player, 
+    names_to = "variable", 
+    values_to = "value"
+    ) |> 
+  # orders data by player name
+  arrange(player)
+```
+
+:::
+
+### Build the plot
+
+*Hints:*
+
+- Image width is 8 in, height is 10 in --- use code chunk yaml
+- center the image output --- use code chunk yaml
+- shrink size down for display to 50% width --- use code chunk yaml
+- All added text, except title, is done with `annotate()`
+- set `axis.text` to blank in theme
+- size 3 and 5 could be useful
+
+::: {.callout-tip icon=false}
+## Solution
+
+```{r}
+#| label: skills-chart-base
+#| fig-width: 8
+#| fig-height: 10
+#| fig.align: 'center'
+#| out.width: '50%'
+
+
+# annotation data 
+labels <- c('TRUE\nSHOOTING', 'USAGE\nRATE', 'DEFENSIVE\nBPM', 'REBOUND\nRATE', 'ASSIST\nRATE')
+bar_values <- c('1st-25th', '25th-50th', '50th-75th', '75th-99th')
+
+player_name <- 'LaMelo Ball'
+
+nba_graph_dat |> # use annotations to get the text
+  filter(player == player_name) |>
+  ggplot(aes(x = variable, y = value)) + 
+  geom_col(width = 1, fill = '#F07786') + 
+  # black lines 
+  geom_segment(aes(x = c(0.5, 1.5, 2.5, 3.5, 4.5), y = 0, yend = 4)) + 
+  # dotted lines 
+  geom_hline(yintercept = 1:4, linetype = 'dotted') + 
+  scale_y_continuous(expand = c(0,0)) + 
+  scale_x_discrete(
+    limits = c('ts_quant', 'usg_quant', 'dbpm_quant', 'trb_quant', 'ast_quant'),
+    expand = c(0,0)
+  ) +
+  ggtitle('LaMelo Ball \n(2024)') + 
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    plot.title = element_text(size = 15)
+  ) +
+  # annotate for player stat labels 
+  annotate('text', x = seq_along(labels), y = 5, label = labels, size = 5) +
+  # annotate for percentile labels
+  annotate('text', x = 3, y = 1:4, label = bar_values, size = 3, vjust = -1.5) + 
+  coord_polar()  
+  
+```
+
+:::
+
+## Challenge
+
+:::{.callout-important icon=false}
+
+Challenge is optional for all students, but we recommend trying them out!
+
+:::
+
+<!-- See the html instructions since they are complete with images and are the official instructions. -->
+
+Continue the work of trying to recreate the graphic from the article. Your final plot should look as follows:
+
+::: {.callout-tip icon=false}
+## Solution
+
+:::

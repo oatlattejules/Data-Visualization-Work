@@ -1,0 +1,413 @@
+---
+title: "L14 Tables 1"
+subtitle: "Data Visualization (STAT 302)" 
+author: "JULIANNA WANG"
+pagetitle: "L14 JULIANNA WANG"
+date: today
+
+format:
+  html:
+    toc: true
+    toc-location: left
+    embed-resources: true
+    code-fold: show
+    link-external-newwindow: true
+    fig-dpi: 300
+
+execute:
+  warning: false
+
+from: markdown+emoji 
+html-table-processing: none
+---
+
+## Overview
+
+The goal of this lab is to explore static tables using the grammar of tables from the `gt` and `gtExtras` package.
+
+The `gt()` function creates a gt table object when provided with table data. Using this function is the first step in a typical **gt** workflow. Once we have the **gt** table object, we can perform styling transformations by adding on column, formatting, tab styling, and summary layers.
+
+A few helpful links to provide more information about the gt package: [gt rstudio](https://gt.rstudio.com/) and [intro to gt](https://gt.rstudio.com/articles/intro-creating-gt-tables.html)
+
+Posit (formally RStudio) hosts an annual table competition! Check out some past winning tables: [2021](https://www.rstudio.com/blog/winners-of-the-2021-table-contest/) [2022](https://posit.co/blog/winners-of-the-2022-table-contest/)
+
+## Dataset 
+
+We will be using the `pizzaplace` dataset included in the `gt` package, the `house_prices`, `stream_data`, and `team_logo` dataset which should be located in your `/data` subdirectory. Each dataset will require a bit of data wrangling provided in their respective exercise code chunk.
+
+```{r}
+#| label: laod-pkgs-data
+#| code-fold: false
+
+# load package(s)
+library(gt)
+library(gtExtras)
+library(tidyverse)
+library(svglite)
+library(RColorBrewer)
+
+# load data
+load('data/house_prices.rda')
+team_logo <- readRDS('data/team_logo.rds')
+stream_data <- read_csv('data/stream_data.csv')
+```
+
+
+## Exercise 1
+
+Use the `pizza_summary` dataset created below to recreate the following graphic as precisely as possible. We will work through this exercise together to provide a high level overview of a few of the ways you can layer on table elements to make a simple but visually appealing table.
+
+*Hints:*
+
+- `md()`: Interpret input text as Markdown-formatted text
+
+```{r}
+#| label: ex-1
+
+# data wrangling
+pizza_summary <- pizzaplace |> 
+  filter(type %in% c("classic", "chicken")) |> 
+  group_by(name, type) |> 
+  summarize(
+    number_sold = n(),
+    profit = sum(price)
+    ) |> 
+  ungroup()
+```
+
+::: {.callout-tip icon=false}
+
+## Solution
+
+```{r}
+#| label: ex-1-table
+
+pizza_summary |>
+  gt(rowname_col = 'name',
+     groupname_col = 'type') |>
+  row_group_order(groups = c('classic', 'chicken')) |>
+  fmt_currency(columns = profit,
+               currency = 'USD',
+               decimals = 2) |>
+  fmt_number(
+    columns = number_sold,
+    decimals = 0
+  ) |>
+  cols_label(
+    number_sold = md('Number<br>Sold'),
+    profit = md('Annual<br>Revenue')
+  ) |>
+  tab_header(
+    title = md('**Pizza Place Annual Pizza Sales**'),
+    subtitle = 'Fiscal Year 2015'
+  ) |>
+  tab_style_by_grp(
+    column = profit,
+    fn = max,
+    cell_fill(color = 'red', alpha = 0.25)
+  ) |>
+  tab_style_by_grp(
+    column = number_sold,
+    fn = max,
+    cell_fill(color = 'blue', alpha = 0.25)
+  ) |>
+  tab_options(
+    row_group.background.color = 'grey40',
+    stub.border.style = 'dashed'
+  ) |>
+  tab_footnote(
+    footnote = 'Our most popular pizza!',
+    locations = cells_stub(rows = 'classic_dlx')
+  ) |>
+  opt_footnote_marks(marks = 'standard') |>
+  tab_source_note(source_note = md('Source: *gt* package dataset')) |>
+  opt_table_outline()
+  
+```
+
+:::
+
+## Exercise 2
+
+Using the `pizza_size` dataset derived from the `pizzaplace` dataset, recreate the following graphic as precisely as possible.
+
+```{r}
+#| label: ex-2
+
+# data wrangling
+pizza_size <- pizzaplace |> 
+  filter(
+    size %in% c("S", "L", "M"), 
+    type %in% c("chicken", "classic", "veggie")
+    ) |> 
+  group_by(type, size) |> 
+  summarize(
+    number_sold = n(),
+    profit = sum(price)
+    ) |> 
+  ungroup() |> 
+  rename(category = type)
+```
+
+### Table 1
+
+*Hints:*
+
+- `tab_style()` is useful for changing cell colors
+- Hex codes: `"#F8766D"`, `"#00BA38"`, `"#619CFF"`
+- size L: bold
+- size M: italic
+- size S: `"white"`
+
+::: {.callout-tip icon=false}
+
+## Solution
+
+```{r}
+#| label: exercise-2-table-2
+
+pizza_size |>
+  group_by(category) |>
+  gt(rowname_col = 'size') |>
+  tab_style(
+    style = list(
+      cell_fill(color = '#F8766D'),
+      cell_text(color = 'white')
+    ),
+      locations = cells_body(rows = size == 'S')
+    ) |>
+  tab_style(
+    style = list(
+      cell_fill(color = '#00BA38'),
+      cell_text(style = 'italic')
+    ),
+    locations = cells_body(rows = size == 'M')
+  ) |>
+  tab_style(
+    style = list(
+      cell_fill(color = '#619CFF'),
+      cell_text(weight = 'bold')
+    ),
+    locations = cells_body(rows = size == 'L')
+  ) |>
+  tab_header(
+    title = md('**Pizza Place Annual Pizza Sales**'),
+    subtitle = 'Fiscal Year 2015'
+  )
+```
+
+
+:::
+
+### Table 2
+
+*Hints:*
+
+- `gt_color_rows` is useful for changing entire column colors
+- manual colors `c("white", "skyblue")`
+- `Pastel1` palette from `RColorBrewer` package
+
+::: {.callout-tip icon=false}
+
+## Solution
+
+```{r}
+pizza_size |>
+  group_by(category) |>
+  gt(rowname_col = 'size') |>
+  gt_color_rows(
+    number_sold,
+    palette = brewer.pal(9, "Pastel1")) |>
+  data_color(
+    columns = profit,
+    palette = c('white', 'skyblue')
+  ) |>
+  tab_header(
+    title = md('**Pizza Place Annual Pizza Sales**'),
+    subtitle = 'Fiscal Year 2015'
+  )
+```
+
+:::
+
+## Exercise 3
+
+Using the `house_illinois` dataset derived from the `house_price` dataset, recreate the following graphic as precisely as possible.
+
+Similar to the ggplot `scales_*()` function, the `gt` package has useful transformations that can be performed using the following syntax `tab_*()`, `fmt_*()`, `cols_*()`. Check the package documentation for a full list of options.
+
+```{r}
+#| label: ex-3
+
+# data wrangling
+house_illinois <- house_prices |> 
+  filter(state %in% c("Illinois")) |> 
+  mutate(year = year(date)) |> 
+  filter(year %in% c(2005:2010) ) |> 
+  group_by(year) |> 
+  summarize(
+    hpi = mean(house_price_index),
+    change = mean(house_price_perc)
+    )
+```
+
+*Hints:*
+
+- color is `"red"` for all percents less than 0
+- percent is accounting
+- currency `"USD"`
+- `"Housing Price Index"` label is a `tab_*()` layer
+
+::: {.callout-tip icon=false}
+
+## Solution
+
+```{r}
+#| label: exercise-3-table
+
+house_illinois |>
+  gt(rowname_col = 'year') |>
+  tab_header(
+    title = md('Average Annual Housing Price Index (HPI)'),
+    subtitle = md('*Illinois Prices for 2006-2010*')
+  ) |>
+  tab_style(
+    style = cell_text(color = 'red'),
+    locations = cells_body(
+      columns = change,
+      rows = change < 0
+    )
+  ) |>
+  fmt_currency(
+    columns = hpi,
+    currency = 'USD',
+    decimals = 2
+  ) |>
+  fmt_percent(
+    columns = change,
+    decimals = 2,
+    scale_values = TRUE, 
+    accounting = TRUE
+  ) |>
+  tab_spanner(
+    label = 'Housing Price Index',
+    columns = c(hpi, change)
+  ) |>
+  cols_label(
+    hpi = 'Value',
+    change = '% Change'
+  ) |>
+  tab_footnote(
+    footnote = 'Housing market crash',
+    locations = cells_stub(rows = '2008')
+  )
+```
+
+:::
+
+## Exercise 4
+
+Adding icons and graphics to a table is made easy with `gtExtras`. Using the `stream_data` dataset, recreate the following graphic as precisely as possible.
+
+*Hints:*
+
+- `gt_plt_bullet()`
+- `gt_fa_column()`
+- `nytimes theme()`
+- `fmt_symbol_first()`
+
+::: {.callout-tip icon=false}
+
+## Solution
+
+```{r}
+#| label: ex-4
+
+# pipe the following code into your gt functions
+stream_data |> 
+  mutate(
+    type = map(type, fontawesome::fa)
+  ) |>
+  gt() |>
+  gt_theme_nytimes() |>
+  gt_plt_bullet(column = nominee, target = winner) |>
+  fmt_symbol_first(
+    column = ratio,
+    suffix = '%',
+    decimals = 1,
+    scale_by = 100 # changes scale of decimals to be out of 100, not 1 
+  ) |>
+  tab_header(
+    title = md('**Netflix leads Emmy Nominations & Wins: <br>2020-2021**'),
+    subtitle = md('but **HBO** leads in their Wins to Nominations ratio')
+  ) |>
+  gt_highlight_rows(rows = distributor == 'HBO', # highlights hbo row
+                    fill = 'grey',
+                    alpha = 0.4) |>
+  gt_add_divider(
+    columns = type,
+    sides = 'right',
+    color = 'lightgrey',
+    weight = px(1) # makes changes to the width of the bar 
+  ) |>
+  cols_width(
+    distributor ~ px(100),
+    type ~ px(40),
+    ratio ~ px(60),
+    nominee ~ px(230)
+  )
+
+```
+
+:::
+
+## Exercise 5
+
+Using the `team_logo` dataset, recreate the following graphic as precisely as possible.
+
+The `tab_options()` layer for `gt` is similar to the `theme()` option for `ggplot`. Here you can add customization to the background colors, line type, size, etc.
+
+*Hints:*
+
+- `gt_img_rows` with `height = 30`
+- tab options:
+  - data row padding is px(1)
+  - table background color is `"gray90"`
+  - table width is 100%
+  - table font color is `"red"`
+  - column labels have background color `"black"`, font size `"large"`, and font weight `"bold"`,
+  - table body has hlines color `"red"`
+  - table body has border bottom color `"red"`
+
+
+::: {.callout-tip icon=false}
+
+## Solution
+
+```{r}
+#| label: ex-5
+
+# pipe the following code into your gt functions
+team_logo |>
+  dplyr::select(logo = team_logo_espn, team_name, team_nick, team_conf) |>
+  slice_head(n = 6) |>
+  gt() |>
+  gt_img_rows(
+    columns = logo,
+    img_source = 'web',
+    height = 30
+  ) |>
+  tab_options(
+    table.font.color = 'red',
+    table.background.color = 'gray90',
+    row_group.padding = px(1),
+    column_labels.background.color = 'black',
+    column_labels.font.size = 'large',
+    column_labels.font.weight = 'bold',
+    table_body.hlines.color = 'red',
+    table_body.border.bottom.color = 'red',
+    table.width = '100%'
+  )
+```
+
+:::
